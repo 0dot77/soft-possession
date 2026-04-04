@@ -18,6 +18,9 @@ const sceneState = {
   p5Ready: false,
   strudelStatus: 'idle',
   strudelError: null,
+  autoCycleSeconds: 10,
+  autoMutationCount: 0,
+  lastAutoMutationAt: null,
   activity: ['System initialized.', 'Gemma mock adapter pending.', 'Strudel bridge pending.'],
 }
 
@@ -27,6 +30,7 @@ const motions = ['still', 'pulse', 'glide', 'shiver', 'erratic', 'flood']
 
 let p5Instance = null
 let p5ModulePromise = null
+let autoLoopHandle = null
 
 function clamp(value, min, max) {
   return Math.min(max, Math.max(min, value))
@@ -69,10 +73,47 @@ function syncStateForLevel(level) {
   sceneState.palette = generatePalette(level)
 }
 
-function mutateState(level) {
+function appendActivity(message) {
+  sceneState.activity.unshift(message)
+  sceneState.activity = sceneState.activity.slice(0, 10)
+}
+
+function mutateState(level, reason = 'manual') {
   syncStateForLevel(level)
-  sceneState.activity.unshift(`Intervention ${level} · ${interventionLabels[level]} · ${sceneState.section}`)
-  sceneState.activity = sceneState.activity.slice(0, 8)
+  appendActivity(
+    `${reason === 'auto' ? 'Auto' : 'Intervention'} ${level} · ${interventionLabels[level]} · ${sceneState.section}`,
+  )
+}
+
+function performAutoMutation() {
+  if (sceneState.isFrozen) return
+
+  const nextLevel = (sceneState.interventionLevel + 1) % 6
+  syncStateForLevel(nextLevel)
+  sceneState.autoMutationCount += 1
+  sceneState.lastAutoMutationAt = new Date().toLocaleTimeString()
+  appendActivity(`Auto mutation #${sceneState.autoMutationCount} · ${sceneState.section} · ${sceneState.motion}`)
+
+  if (sceneState.strudelStatus === 'playing') {
+    const gemmaUpdate = createGemmaMockUpdate(sceneState)
+    startStrudel(gemmaUpdate.changes.strudelPattern).then((result) => {
+      sceneState.strudelStatus = result.transport
+      sceneState.strudelError = result.error ?? null
+      render()
+    })
+  }
+
+  render()
+}
+
+function ensureAutoLoop() {
+  if (autoLoopHandle) {
+    clearInterval(autoLoopHandle)
+  }
+
+  autoLoopHandle = window.setInterval(() => {
+    performAutoMutation()
+  }, sceneState.autoCycleSeconds * 1000)
 }
 
 async function ensureP5Stage() {
@@ -161,17 +202,14 @@ async function handleStrudelToggle(patternSource) {
     const result = await stopStrudel()
     sceneState.strudelStatus = result.transport
     sceneState.strudelError = result.error ?? null
-    sceneState.activity.unshift('Strudel transport stopped')
+    appendActivity('Strudel transport stopped')
   } else {
     const result = await startStrudel(patternSource)
     sceneState.strudelStatus = result.transport
     sceneState.strudelError = result.error ?? null
-    sceneState.activity.unshift(
-      result.ok ? 'Strudel transport started' : `Strudel failed · ${result.error}`,
-    )
+    appendActivity(result.ok ? 'Strudel transport started' : `Strudel failed · ${result.error}`)
   }
 
-  sceneState.activity = sceneState.activity.slice(0, 8)
   render()
 }
 
@@ -233,6 +271,13 @@ function render() {
               .map((label, index) => `<span ${index === sceneState.interventionLevel ? 'class="active"' : ''}>${label}</span>`)
               .join('')}</div>
           </div>
+          <div class="slider-wrap">
+            <div>
+              <span class="label">Autonomy cadence</span>
+              <strong>${sceneState.autoCycleSeconds}s · ${sceneState.isFrozen ? 'paused' : 'active'}</strong>
+            </div>
+            <input id="cycle-seconds" type="range" min="4" max="20" step="1" value="${sceneState.autoCycleSeconds}" />
+          </div>
           <div class="actions">
             <button id="nudge">Nudge</button>
             <button id="freeze" class="ghost">${sceneState.isFrozen ? 'Resume AI' : 'Freeze AI'}</button>
@@ -249,6 +294,7 @@ function render() {
             <li><span>Density</span><strong>${sceneState.density.toFixed(2)}</strong></li>
             <li><span>Chaos</span><strong>${sceneState.chaos.toFixed(2)}</strong></li>
             <li><span>Repetition</span><strong>${sceneState.repetition.toFixed(2)}</strong></li>
+            <li><span>Auto mutations</span><strong>${sceneState.autoMutationCount}</strong></li>
           </ul>
           <div class="palette">${sceneState.palette.map((color) => `<span style="background:${color}"></span>`).join('')}</div>
         </section>
@@ -281,6 +327,17 @@ function render() {
               </p>
               <pre>${JSON.stringify(strudelSnapshot, null, 2)}</pre>
             </div>
+            <div class="stage__text">
+              <h2>Autonomy loop</h2>
+              <p>
+                Last mutation: <strong>${sceneState.lastAutoMutationAt ?? 'not yet'}</strong>
+              </p>
+              <pre>${JSON.stringify({
+                cadenceSeconds: sceneState.autoCycleSeconds,
+                autoMutationCount: sceneState.autoMutationCount,
+                frozen: sceneState.isFrozen,
+              }, null, 2)}</pre>
+            </div>
           </div>
         </section>
       </main>
@@ -292,25 +349,29 @@ function render() {
     render()
   })
 
+  document.querySelector('#cycle-seconds').addEventListener('input', (event) => {
+    sceneState.autoCycleSeconds = Number(event.target.value)
+    appendActivity(`Autonomy cadence set to ${sceneState.autoCycleSeconds}s`)
+    ensureAutoLoop()
+    render()
+  })
+
   document.querySelector('#prompt-input').addEventListener('change', (event) => {
     sceneState.prompt = event.target.value
-    sceneState.activity.unshift(`Intent updated · ${sceneState.prompt}`)
-    sceneState.activity = sceneState.activity.slice(0, 8)
+    appendActivity(`Intent updated · ${sceneState.prompt}`)
     render()
   })
 
   document.querySelector('#nudge').addEventListener('click', () => {
     const nextLevel = (sceneState.interventionLevel + 1) % 6
     syncStateForLevel(nextLevel)
-    sceneState.activity.unshift(`Nudge requested · mock scene mutation to ${sceneState.section}`)
-    sceneState.activity = sceneState.activity.slice(0, 8)
+    appendActivity(`Nudge requested · mock scene mutation to ${sceneState.section}`)
     render()
   })
 
   document.querySelector('#freeze').addEventListener('click', () => {
     sceneState.isFrozen = !sceneState.isFrozen
-    sceneState.activity.unshift(sceneState.isFrozen ? 'Freeze engaged · autonomous updates paused' : 'Resume engaged · autonomous updates available')
-    sceneState.activity = sceneState.activity.slice(0, 8)
+    appendActivity(sceneState.isFrozen ? 'Freeze engaged · autonomous updates paused' : 'Resume engaged · autonomous updates available')
     render()
   })
 
@@ -322,4 +383,5 @@ function render() {
 }
 
 syncStateForLevel(sceneState.interventionLevel)
+ensureAutoLoop()
 render()
