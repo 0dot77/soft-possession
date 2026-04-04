@@ -1,5 +1,6 @@
 import './style.css'
-import p5 from 'p5'
+import { createGemmaMockUpdate } from './gemmaMock'
+import { createStrudelSnapshot } from './strudelMock'
 
 const sceneState = {
   prompt: 'slow mechanical dawn',
@@ -12,11 +13,9 @@ const sceneState = {
   palette: ['#0b1020', '#7dd3fc', '#f472b6'],
   motion: 'pulse',
   phase: 0,
-  activity: [
-    'System initialized.',
-    'Gemma adapter pending.',
-    'p5.js stage attached.',
-  ],
+  isFrozen: false,
+  p5Ready: false,
+  activity: ['System initialized.', 'Gemma mock adapter pending.', 'Strudel bridge pending.'],
 }
 
 const interventionLabels = ['Observe', 'Suggest', 'Assist', 'Guide', 'Perform', 'Possess']
@@ -24,6 +23,7 @@ const sections = ['drift', 'build', 'fracture', 'recovery', 'surge', 'afterglow'
 const motions = ['still', 'pulse', 'glide', 'shiver', 'erratic', 'flood']
 
 let p5Instance = null
+let p5ModulePromise = null
 
 function clamp(value, min, max) {
   return Math.min(max, Math.max(min, value))
@@ -54,7 +54,7 @@ function generatePalette(level) {
   return palettes[level]
 }
 
-function mutateState(level) {
+function syncStateForLevel(level) {
   const normalized = level / 5
   sceneState.interventionLevel = level
   sceneState.tempo = Math.round(96 + normalized * 54)
@@ -64,13 +64,23 @@ function mutateState(level) {
   sceneState.section = sections[level]
   sceneState.motion = motions[level]
   sceneState.palette = generatePalette(level)
+}
+
+function mutateState(level) {
+  syncStateForLevel(level)
   sceneState.activity.unshift(`Intervention ${level} · ${interventionLabels[level]} · ${sceneState.section}`)
   sceneState.activity = sceneState.activity.slice(0, 8)
 }
 
-function ensureP5Stage() {
+async function ensureP5Stage() {
   const mount = document.querySelector('#p5-stage')
   if (!mount) return
+
+  if (!p5ModulePromise) {
+    p5ModulePromise = import('p5')
+  }
+
+  const { default: p5 } = await p5ModulePromise
 
   if (p5Instance) {
     p5Instance.remove()
@@ -82,6 +92,7 @@ function ensureP5Stage() {
       const canvas = sketch.createCanvas(mount.clientWidth, mount.clientHeight)
       canvas.parent(mount)
       sketch.noStroke()
+      sceneState.p5Ready = true
     }
 
     sketch.windowResized = () => {
@@ -141,6 +152,8 @@ function ensureP5Stage() {
 }
 
 function render() {
+  const gemmaUpdate = createGemmaMockUpdate(sceneState)
+  const strudelSnapshot = createStrudelSnapshot(sceneState)
   const app = document.querySelector('#app')
   const intensity = sceneState.interventionLevel / 5
   const primary = sceneState.palette[0]
@@ -194,7 +207,7 @@ function render() {
           </div>
           <div class="actions">
             <button id="nudge">Nudge</button>
-            <button id="freeze" class="ghost">Freeze AI</button>
+            <button id="freeze" class="ghost">${sceneState.isFrozen ? 'Resume AI' : 'Freeze AI'}</button>
           </div>
         </section>
 
@@ -220,17 +233,25 @@ function render() {
           </ol>
         </section>
 
-        <section class="panel panel--wide stage">
+        <section class="panel panel--wide stage stage--stacked">
           <div class="stage__visual">
             <div id="p5-stage" class="p5-stage"></div>
           </div>
-          <div class="stage__text">
-            <h2>Prototype direction</h2>
-            <p>
-              The stage is now rendered by p5.js. Next: connect Strudel transport and add a
-              Gemma adapter that emits structured scene updates instead of freeform text.
-            </p>
-            <code>{ section: &quot;${sceneState.section}&quot;, motion: &quot;${sceneState.motion}&quot;, intervention: ${sceneState.interventionLevel} }</code>
+          <div class="stage__meta-grid">
+            <div class="stage__text">
+              <h2>Gemma mock output</h2>
+              <p>
+                Structured update channel for a future local or WebGPU Gemma runtime.
+              </p>
+              <pre>${JSON.stringify(gemmaUpdate, null, 2)}</pre>
+            </div>
+            <div class="stage__text">
+              <h2>Strudel bridge snapshot</h2>
+              <p>
+                Next step is replacing this snapshot with a live transport + evaluated patterns.
+              </p>
+              <pre>${JSON.stringify(strudelSnapshot, null, 2)}</pre>
+            </div>
           </div>
         </section>
       </main>
@@ -250,13 +271,16 @@ function render() {
   })
 
   document.querySelector('#nudge').addEventListener('click', () => {
-    sceneState.activity.unshift('Nudge requested · placeholder for Gemma scene mutation')
+    const nextLevel = (sceneState.interventionLevel + 1) % 6
+    syncStateForLevel(nextLevel)
+    sceneState.activity.unshift(`Nudge requested · mock scene mutation to ${sceneState.section}`)
     sceneState.activity = sceneState.activity.slice(0, 8)
     render()
   })
 
   document.querySelector('#freeze').addEventListener('click', () => {
-    sceneState.activity.unshift('Freeze engaged · autonomous updates paused')
+    sceneState.isFrozen = !sceneState.isFrozen
+    sceneState.activity.unshift(sceneState.isFrozen ? 'Freeze engaged · autonomous updates paused' : 'Resume engaged · autonomous updates available')
     sceneState.activity = sceneState.activity.slice(0, 8)
     render()
   })
@@ -264,4 +288,5 @@ function render() {
   ensureP5Stage()
 }
 
+syncStateForLevel(sceneState.interventionLevel)
 render()

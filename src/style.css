@@ -259,6 +259,11 @@ button.ghost {
   align-items: center;
 }
 
+.stage--stacked {
+  grid-template-columns: 1.1fr 0.9fr;
+  align-items: stretch;
+}
+
 .stage__visual {
   min-height: 280px;
   position: relative;
@@ -283,6 +288,11 @@ button.ghost {
   min-height: 280px;
 }
 
+.stage__meta-grid {
+  display: grid;
+  gap: 18px;
+}
+
 .stage__text {
   display: grid;
   gap: 12px;
@@ -293,12 +303,20 @@ button.ghost {
   line-height: 1.6;
 }
 
+pre,
 code {
   padding: 12px 14px;
   border-radius: 14px;
   background: rgba(255, 255, 255, 0.06);
   color: rgba(255, 255, 255, 0.86);
   overflow-wrap: anywhere;
+}
+
+pre {
+  margin: 0;
+  white-space: pre-wrap;
+  font-size: 0.84rem;
+  line-height: 1.5;
 }
 
 @keyframes drift {
