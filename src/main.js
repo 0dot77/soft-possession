@@ -1,6 +1,7 @@
 import './style.css'
-import { createGemmaMockUpdate } from './gemmaMock'
-import { createStrudelSnapshot } from './strudelMock'
+import { createCodeEditor } from './editorRuntime'
+import { defaultP5Code, defaultStrudelCode } from './defaults'
+import { destroyP5Sketch, runP5Sketch } from './p5Runtime'
 import { getStrudelRuntimeState, startStrudel, stopStrudel } from './strudelRuntime'
 
 const sceneState = {
@@ -13,40 +14,32 @@ const sceneState = {
   repetition: 0.64,
   palette: ['#0b1020', '#7dd3fc', '#f472b6'],
   motion: 'pulse',
-  phase: 0,
   isFrozen: false,
-  p5Ready: false,
   strudelStatus: 'idle',
   strudelError: null,
+  p5Error: null,
   autoCycleSeconds: 10,
   autoMutationCount: 0,
   lastAutoMutationAt: null,
-  activity: ['System initialized.', 'Gemma mock adapter pending.', 'Strudel bridge pending.'],
+  activity: ['System initialized.', 'Editors ready.', 'Live coding mode enabled.'],
+}
+
+const appState = {
+  p5Code: defaultP5Code,
+  strudelCode: defaultStrudelCode,
 }
 
 const interventionLabels = ['Observe', 'Suggest', 'Assist', 'Guide', 'Perform', 'Possess']
 const sections = ['drift', 'build', 'fracture', 'recovery', 'surge', 'afterglow']
 const motions = ['still', 'pulse', 'glide', 'shiver', 'erratic', 'flood']
 
-let p5Instance = null
-let p5ModulePromise = null
+let editorsMounted = false
+let p5Editor = null
+let strudelEditor = null
 let autoLoopHandle = null
 
 function clamp(value, min, max) {
   return Math.min(max, Math.max(min, value))
-}
-
-function hexToRgb(hex) {
-  const normalized = hex.replace('#', '')
-  const values = normalized.match(/[\da-f]{2}/gi)?.map((v) => Number.parseInt(v, 16)) ?? [0, 0, 0]
-  return values.length === 3 ? values : [0, 0, 0]
-}
-
-function interpolateHex(a, b, t) {
-  const [ar, ag, ab] = hexToRgb(a)
-  const [br, bg, bb] = hexToRgb(b)
-  const mix = (x, y) => Math.round(x + (y - x) * t)
-  return `rgb(${mix(ar, br)}, ${mix(ag, bg)}, ${mix(ab, bb)})`
 }
 
 function generatePalette(level) {
@@ -78,11 +71,48 @@ function appendActivity(message) {
   sceneState.activity = sceneState.activity.slice(0, 10)
 }
 
-function mutateState(level, reason = 'manual') {
-  syncStateForLevel(level)
-  appendActivity(
-    `${reason === 'auto' ? 'Auto' : 'Intervention'} ${level} · ${interventionLabels[level]} · ${sceneState.section}`,
-  )
+async function executeP5() {
+  const mount = document.querySelector('#p5-stage')
+  if (!mount) return
+
+  try {
+    mount.innerHTML = ''
+    await runP5Sketch({
+      mount,
+      source: appState.p5Code,
+      scope: {
+        mount,
+        width: mount.clientWidth,
+        height: mount.clientHeight,
+        state: sceneState,
+      },
+    })
+    sceneState.p5Error = null
+    appendActivity('p5 sketch executed')
+  } catch (error) {
+    console.error(error)
+    sceneState.p5Error = error instanceof Error ? error.message : String(error)
+    appendActivity(`p5 error · ${sceneState.p5Error}`)
+  }
+
+  renderRuntimeBadges()
+}
+
+async function toggleStrudel() {
+  const runtime = getStrudelRuntimeState()
+  let result
+
+  if (runtime.transport === 'playing') {
+    result = await stopStrudel()
+    appendActivity('Strudel transport stopped')
+  } else {
+    result = await startStrudel(appState.strudelCode)
+    appendActivity(result.ok ? 'Strudel transport started' : `Strudel failed · ${result.error}`)
+  }
+
+  sceneState.strudelStatus = result.transport
+  sceneState.strudelError = result.error ?? null
+  renderRuntimeBadges()
 }
 
 function performAutoMutation() {
@@ -92,296 +122,236 @@ function performAutoMutation() {
   syncStateForLevel(nextLevel)
   sceneState.autoMutationCount += 1
   sceneState.lastAutoMutationAt = new Date().toLocaleTimeString()
-  appendActivity(`Auto mutation #${sceneState.autoMutationCount} · ${sceneState.section} · ${sceneState.motion}`)
-
-  if (sceneState.strudelStatus === 'playing') {
-    const gemmaUpdate = createGemmaMockUpdate(sceneState)
-    startStrudel(gemmaUpdate.changes.strudelPattern).then((result) => {
-      sceneState.strudelStatus = result.transport
-      sceneState.strudelError = result.error ?? null
-      render()
-    })
-  }
-
-  render()
+  appendActivity(`Auto mutation #${sceneState.autoMutationCount} · ${sceneState.section}`)
+  executeP5()
+  renderStaticState()
 }
 
 function ensureAutoLoop() {
   if (autoLoopHandle) {
     clearInterval(autoLoopHandle)
   }
-
-  autoLoopHandle = window.setInterval(() => {
-    performAutoMutation()
-  }, sceneState.autoCycleSeconds * 1000)
+  autoLoopHandle = window.setInterval(performAutoMutation, sceneState.autoCycleSeconds * 1000)
 }
 
-async function ensureP5Stage() {
-  const mount = document.querySelector('#p5-stage')
-  if (!mount) return
-
-  if (!p5ModulePromise) {
-    p5ModulePromise = import('p5')
-  }
-
-  const { default: p5 } = await p5ModulePromise
-
-  if (p5Instance) {
-    p5Instance.remove()
-    p5Instance = null
-  }
-
-  p5Instance = new p5((sketch) => {
-    sketch.setup = () => {
-      const canvas = sketch.createCanvas(mount.clientWidth, mount.clientHeight)
-      canvas.parent(mount)
-      sketch.noStroke()
-      sceneState.p5Ready = true
-    }
-
-    sketch.windowResized = () => {
-      sketch.resizeCanvas(mount.clientWidth, mount.clientHeight)
-    }
-
-    sketch.draw = () => {
-      sceneState.phase += 0.008 + sceneState.chaos * 0.012
-
-      const [r1, g1, b1] = hexToRgb(sceneState.palette[0])
-      const [r2, g2, b2] = hexToRgb(sceneState.palette[1])
-      const [r3, g3, b3] = hexToRgb(sceneState.palette[2])
-      const intensity = sceneState.interventionLevel / 5
-      const pulse = (Math.sin(sceneState.phase * (1 + sceneState.density)) + 1) * 0.5
-
-      sketch.background(r1, g1, b1, 255)
-
-      for (let i = 0; i < 7; i += 1) {
-        const t = i / 6
-        const offset = Math.sin(sceneState.phase * (1.2 + t * 1.8) + i) * 40 * (0.2 + intensity)
-        const y = sketch.height * (0.16 + t * 0.68)
-        const alpha = 20 + intensity * 80 + t * 40
-        sketch.fill(r2, g2, b2, alpha)
-        sketch.ellipse(
-          sketch.width * (0.5 + Math.cos(sceneState.phase + i) * 0.1),
-          y + offset,
-          sketch.width * (0.12 + sceneState.density * 0.36 + t * 0.08),
-          sketch.height * (0.08 + pulse * 0.18 + t * 0.03),
-        )
-      }
-
-      const particleCount = Math.round(18 + sceneState.density * 48)
-      for (let i = 0; i < particleCount; i += 1) {
-        const seed = i * 77.31
-        const x = (Math.sin(sceneState.phase * 0.7 + seed) + 1) * 0.5 * sketch.width
-        const y = (Math.cos(sceneState.phase * (0.4 + intensity) + seed * 0.3) + 1) * 0.5 * sketch.height
-        const size = 2 + ((i % 6) + 1) * (1.2 + sceneState.chaos * 2.8)
-        const alpha = 60 + (i % 5) * 20
-        sketch.fill(r3, g3, b3, alpha)
-        sketch.circle(x, y, size)
-      }
-
-      sketch.stroke(r3, g3, b3, 90)
-      sketch.strokeWeight(1.2 + intensity * 2.4)
-      sketch.noFill()
-      const waveAmp = sketch.height * (0.04 + sceneState.chaos * 0.18)
-      sketch.beginShape()
-      for (let x = 0; x <= sketch.width; x += 16) {
-        const noise = Math.sin(sceneState.phase * 1.8 + x * 0.018) * waveAmp
-        const y = sketch.height * 0.5 + noise + Math.sin(x * 0.01 + sceneState.phase) * 12
-        sketch.vertex(x, y)
-      }
-      sketch.endShape()
-      sketch.noStroke()
-    }
-  })
-}
-
-async function handleStrudelToggle(patternSource) {
-  const runtime = getStrudelRuntimeState()
-
-  if (runtime.transport === 'playing') {
-    const result = await stopStrudel()
-    sceneState.strudelStatus = result.transport
-    sceneState.strudelError = result.error ?? null
-    appendActivity('Strudel transport stopped')
-  } else {
-    const result = await startStrudel(patternSource)
-    sceneState.strudelStatus = result.transport
-    sceneState.strudelError = result.error ?? null
-    appendActivity(result.ok ? 'Strudel transport started' : `Strudel failed · ${result.error}`)
-  }
-
-  render()
-}
-
-function render() {
-  const gemmaUpdate = createGemmaMockUpdate(sceneState)
-  const strudelSnapshot = createStrudelSnapshot(sceneState)
-  const runtime = getStrudelRuntimeState()
-  sceneState.strudelStatus = runtime.transport
-  sceneState.strudelError = runtime.lastError
-
+function renderShell() {
   const app = document.querySelector('#app')
-  const intensity = sceneState.interventionLevel / 5
-  const primary = sceneState.palette[0]
-  const secondary = sceneState.palette[1]
-  const accent = sceneState.palette[2]
-
-  document.documentElement.style.setProperty('--bg-0', primary)
-  document.documentElement.style.setProperty('--bg-1', secondary)
-  document.documentElement.style.setProperty('--accent', accent)
-  document.documentElement.style.setProperty('--accent-soft', interpolateHex(primary, accent, 0.4))
-  document.documentElement.style.setProperty('--panel', `rgba(9, 12, 24, ${0.72 + intensity * 0.16})`)
-  document.documentElement.style.setProperty('--line', `rgba(255, 255, 255, ${0.08 + intensity * 0.12})`)
-
   app.innerHTML = `
-    <div class="shell">
-      <header class="hero">
+    <div class="shell shell--editor">
+      <header class="hero hero--compact">
         <div>
           <p class="eyebrow">soft possession</p>
-          <h1>Shared agency for p5.js + Strudel + Gemma.</h1>
-          <p class="lede">
-            A prototype for live-coded performance where intervention strength shifts from
-            quiet suggestion to active co-performance.
-          </p>
+          <h1>Live coding instrument for p5.js + Strudel + Gemma.</h1>
+          <p class="lede">Write code directly, then decide how much the system gets to interfere.</p>
         </div>
         <div class="hero-card">
           <span class="hero-card__label">Current scene</span>
-          <strong>${sceneState.section}</strong>
-          <span>${sceneState.motion} motion · tempo ${sceneState.tempo}</span>
+          <strong id="scene-title"></strong>
+          <span id="scene-subtitle"></span>
         </div>
       </header>
 
-      <main class="grid">
-        <section class="panel panel--wide">
+      <main class="workspace">
+        <section class="panel control-panel">
           <div class="panel__head">
-            <h2>Intent</h2>
-            <span class="badge">MVP</span>
+            <h2>Control surface</h2>
+            <span class="badge">live</span>
           </div>
+
           <label class="prompt">
             <span>Prompt</span>
-            <textarea id="prompt-input" rows="3">${sceneState.prompt}</textarea>
+            <textarea id="prompt-input" rows="3"></textarea>
           </label>
+
           <div class="slider-wrap">
             <div>
               <span class="label">Intervention</span>
-              <strong id="level-label">${sceneState.interventionLevel} · ${interventionLabels[sceneState.interventionLevel]}</strong>
+              <strong id="level-label"></strong>
             </div>
-            <input id="intervention" type="range" min="0" max="5" step="1" value="${sceneState.interventionLevel}" />
-            <div class="ticks">${interventionLabels
-              .map((label, index) => `<span ${index === sceneState.interventionLevel ? 'class="active"' : ''}>${label}</span>`)
-              .join('')}</div>
+            <input id="intervention" type="range" min="0" max="5" step="1" />
+            <div class="ticks" id="intervention-ticks"></div>
           </div>
+
           <div class="slider-wrap">
             <div>
               <span class="label">Autonomy cadence</span>
-              <strong>${sceneState.autoCycleSeconds}s · ${sceneState.isFrozen ? 'paused' : 'active'}</strong>
+              <strong id="cadence-label"></strong>
             </div>
-            <input id="cycle-seconds" type="range" min="4" max="20" step="1" value="${sceneState.autoCycleSeconds}" />
+            <input id="cycle-seconds" type="range" min="4" max="20" step="1" />
           </div>
-          <div class="actions">
-            <button id="nudge">Nudge</button>
-            <button id="freeze" class="ghost">${sceneState.isFrozen ? 'Resume AI' : 'Freeze AI'}</button>
-            <button id="strudel-toggle" class="ghost">${sceneState.strudelStatus === 'playing' ? 'Stop Strudel' : 'Start Strudel'}</button>
+
+          <div class="actions actions--wrap">
+            <button id="run-p5">Run p5</button>
+            <button id="run-strudel">Start Strudel</button>
+            <button id="freeze" class="ghost">Freeze AI</button>
+            <button id="reset-stage" class="ghost">Reset p5</button>
           </div>
+
+          <div class="status-grid">
+            <div class="mini-card">
+              <span>Tempo</span>
+              <strong id="tempo-value"></strong>
+            </div>
+            <div class="mini-card">
+              <span>Density</span>
+              <strong id="density-value"></strong>
+            </div>
+            <div class="mini-card">
+              <span>Chaos</span>
+              <strong id="chaos-value"></strong>
+            </div>
+            <div class="mini-card">
+              <span>Mutations</span>
+              <strong id="mutation-value"></strong>
+            </div>
+          </div>
+
+          <div class="runtime-badges" id="runtime-badges"></div>
         </section>
 
-        <section class="panel">
+        <section class="panel editor-panel">
           <div class="panel__head">
-            <h2>System state</h2>
+            <h2>p5.js</h2>
+            <span class="badge">visual</span>
           </div>
-          <ul class="metrics">
-            <li><span>Tempo</span><strong>${sceneState.tempo}</strong></li>
-            <li><span>Density</span><strong>${sceneState.density.toFixed(2)}</strong></li>
-            <li><span>Chaos</span><strong>${sceneState.chaos.toFixed(2)}</strong></li>
-            <li><span>Repetition</span><strong>${sceneState.repetition.toFixed(2)}</strong></li>
-            <li><span>Auto mutations</span><strong>${sceneState.autoMutationCount}</strong></li>
-          </ul>
-          <div class="palette">${sceneState.palette.map((color) => `<span style="background:${color}"></span>`).join('')}</div>
+          <div class="editor-host" id="p5-editor"></div>
         </section>
 
-        <section class="panel">
+        <section class="panel editor-panel">
           <div class="panel__head">
-            <h2>Activity log</h2>
+            <h2>Strudel</h2>
+            <span class="badge">pattern</span>
           </div>
-          <ol class="activity">
-            ${sceneState.activity.map((item) => `<li>${item}</li>`).join('')}
-          </ol>
+          <div class="editor-host" id="strudel-editor"></div>
         </section>
 
-        <section class="panel panel--wide stage stage--stacked">
-          <div class="stage__visual">
-            <div id="p5-stage" class="p5-stage"></div>
+        <section class="panel stage-panel">
+          <div class="panel__head">
+            <h2>Stage</h2>
+            <span class="badge">preview</span>
           </div>
-          <div class="stage__meta-grid">
-            <div class="stage__text">
-              <h2>Gemma mock output</h2>
-              <p>
-                Structured update channel for a future local or WebGPU Gemma runtime.
-              </p>
-              <pre>${JSON.stringify(gemmaUpdate, null, 2)}</pre>
-            </div>
-            <div class="stage__text">
-              <h2>Strudel bridge snapshot</h2>
-              <p>
-                Transport: <strong>${sceneState.strudelStatus}</strong>${sceneState.strudelError ? ` · Error: ${sceneState.strudelError}` : ''}
-              </p>
-              <pre>${JSON.stringify(strudelSnapshot, null, 2)}</pre>
-            </div>
-            <div class="stage__text">
-              <h2>Autonomy loop</h2>
-              <p>
-                Last mutation: <strong>${sceneState.lastAutoMutationAt ?? 'not yet'}</strong>
-              </p>
-              <pre>${JSON.stringify({
-                cadenceSeconds: sceneState.autoCycleSeconds,
-                autoMutationCount: sceneState.autoMutationCount,
-                frozen: sceneState.isFrozen,
-              }, null, 2)}</pre>
-            </div>
+          <div class="stage__visual"><div id="p5-stage" class="p5-stage"></div></div>
+        </section>
+
+        <section class="panel log-panel">
+          <div class="panel__head">
+            <h2>Activity</h2>
+            <span class="badge">trace</span>
           </div>
+          <ol class="activity" id="activity-log"></ol>
         </section>
       </main>
     </div>
   `
+}
+
+function renderStaticState() {
+  document.querySelector('#scene-title').textContent = sceneState.section
+  document.querySelector('#scene-subtitle').textContent = `${sceneState.motion} motion · tempo ${sceneState.tempo}`
+  document.querySelector('#prompt-input').value = sceneState.prompt
+  document.querySelector('#intervention').value = String(sceneState.interventionLevel)
+  document.querySelector('#cycle-seconds').value = String(sceneState.autoCycleSeconds)
+  document.querySelector('#level-label').textContent = `${sceneState.interventionLevel} · ${interventionLabels[sceneState.interventionLevel]}`
+  document.querySelector('#cadence-label').textContent = `${sceneState.autoCycleSeconds}s · ${sceneState.isFrozen ? 'paused' : 'active'}`
+  document.querySelector('#tempo-value').textContent = String(sceneState.tempo)
+  document.querySelector('#density-value').textContent = sceneState.density.toFixed(2)
+  document.querySelector('#chaos-value').textContent = sceneState.chaos.toFixed(2)
+  document.querySelector('#mutation-value').textContent = String(sceneState.autoMutationCount)
+  document.querySelector('#run-strudel').textContent = sceneState.strudelStatus === 'playing' ? 'Stop Strudel' : 'Start Strudel'
+  document.querySelector('#freeze').textContent = sceneState.isFrozen ? 'Resume AI' : 'Freeze AI'
+  document.querySelector('#intervention-ticks').innerHTML = interventionLabels
+    .map((label, index) => `<span ${index === sceneState.interventionLevel ? 'class="active"' : ''}>${label}</span>`)
+    .join('')
+  document.querySelector('#activity-log').innerHTML = sceneState.activity.map((item) => `<li>${item}</li>`).join('')
+}
+
+function renderRuntimeBadges() {
+  const runtime = getStrudelRuntimeState()
+  const badges = [
+    `p5 ${sceneState.p5Error ? 'error' : 'ready'}`,
+    `strudel ${runtime.transport}`,
+    sceneState.lastAutoMutationAt ? `last auto ${sceneState.lastAutoMutationAt}` : 'no auto mutations yet',
+  ]
+
+  if (sceneState.p5Error) badges.push(`p5: ${sceneState.p5Error}`)
+  if (sceneState.strudelError) badges.push(`strudel: ${sceneState.strudelError}`)
+
+  document.querySelector('#runtime-badges').innerHTML = badges.map((item) => `<span>${item}</span>`).join('')
+}
+
+function bindControls() {
+  document.querySelector('#prompt-input').addEventListener('change', (event) => {
+    sceneState.prompt = event.target.value
+    appendActivity(`Intent updated · ${sceneState.prompt}`)
+    renderStaticState()
+  })
 
   document.querySelector('#intervention').addEventListener('input', (event) => {
-    mutateState(Number(event.target.value))
-    render()
+    syncStateForLevel(Number(event.target.value))
+    appendActivity(`Intervention ${sceneState.interventionLevel} · ${sceneState.section}`)
+    executeP5()
+    renderStaticState()
   })
 
   document.querySelector('#cycle-seconds').addEventListener('input', (event) => {
     sceneState.autoCycleSeconds = Number(event.target.value)
     appendActivity(`Autonomy cadence set to ${sceneState.autoCycleSeconds}s`)
     ensureAutoLoop()
-    render()
+    renderStaticState()
   })
 
-  document.querySelector('#prompt-input').addEventListener('change', (event) => {
-    sceneState.prompt = event.target.value
-    appendActivity(`Intent updated · ${sceneState.prompt}`)
-    render()
+  document.querySelector('#run-p5').addEventListener('click', () => {
+    executeP5()
   })
 
-  document.querySelector('#nudge').addEventListener('click', () => {
-    const nextLevel = (sceneState.interventionLevel + 1) % 6
-    syncStateForLevel(nextLevel)
-    appendActivity(`Nudge requested · mock scene mutation to ${sceneState.section}`)
-    render()
+  document.querySelector('#run-strudel').addEventListener('click', async () => {
+    await toggleStrudel()
+    renderStaticState()
   })
 
   document.querySelector('#freeze').addEventListener('click', () => {
     sceneState.isFrozen = !sceneState.isFrozen
-    appendActivity(sceneState.isFrozen ? 'Freeze engaged · autonomous updates paused' : 'Resume engaged · autonomous updates available')
-    render()
+    appendActivity(sceneState.isFrozen ? 'Freeze engaged' : 'Resume engaged')
+    renderStaticState()
   })
 
-  document.querySelector('#strudel-toggle').addEventListener('click', async () => {
-    await handleStrudelToggle(gemmaUpdate.changes.strudelPattern)
+  document.querySelector('#reset-stage').addEventListener('click', () => {
+    destroyP5Sketch()
+    executeP5()
   })
-
-  ensureP5Stage()
 }
 
-syncStateForLevel(sceneState.interventionLevel)
-ensureAutoLoop()
-render()
+function mountEditors() {
+  if (editorsMounted) return
+
+  p5Editor = createCodeEditor({
+    parent: document.querySelector('#p5-editor'),
+    doc: appState.p5Code,
+    onChange: (value) => {
+      appState.p5Code = value
+    },
+  })
+
+  strudelEditor = createCodeEditor({
+    parent: document.querySelector('#strudel-editor'),
+    doc: appState.strudelCode,
+    onChange: (value) => {
+      appState.strudelCode = value
+    },
+  })
+
+  editorsMounted = true
+}
+
+function init() {
+  syncStateForLevel(sceneState.interventionLevel)
+  renderShell()
+  bindControls()
+  mountEditors()
+  ensureAutoLoop()
+  renderStaticState()
+  renderRuntimeBadges()
+  executeP5()
+}
+
+init()

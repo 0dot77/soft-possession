@@ -13,6 +13,11 @@ async function loadStrudel() {
   return strudelModulePromise
 }
 
+function buildPattern(mod, patternSource) {
+  const fn = new Function(...Object.keys(mod), `return (${patternSource});`)
+  return fn(...Object.values(mod))
+}
+
 export async function startStrudel(patternSource) {
   try {
     const mod = await loadStrudel()
@@ -26,9 +31,12 @@ export async function startStrudel(patternSource) {
       strudelState.started = true
     }
 
+    if (typeof mod.silence === 'function') {
+      mod.silence()
+    }
+
     const repl = mod.webaudioRepl()
-    const fn = new Function(...Object.keys(mod), `return (${patternSource});`)
-    const pattern = fn(...Object.values(mod))
+    const pattern = buildPattern(mod, patternSource)
     if (pattern?.play) {
       pattern.play({ repl })
     }
