@@ -1,6 +1,7 @@
 import './style.css'
 import { createGemmaMockUpdate } from './gemmaMock'
 import { createStrudelSnapshot } from './strudelMock'
+import { getStrudelRuntimeState, startStrudel, stopStrudel } from './strudelRuntime'
 
 const sceneState = {
   prompt: 'slow mechanical dawn',
@@ -15,6 +16,8 @@ const sceneState = {
   phase: 0,
   isFrozen: false,
   p5Ready: false,
+  strudelStatus: 'idle',
+  strudelError: null,
   activity: ['System initialized.', 'Gemma mock adapter pending.', 'Strudel bridge pending.'],
 }
 
@@ -151,9 +154,34 @@ async function ensureP5Stage() {
   })
 }
 
+async function handleStrudelToggle(patternSource) {
+  const runtime = getStrudelRuntimeState()
+
+  if (runtime.transport === 'playing') {
+    const result = await stopStrudel()
+    sceneState.strudelStatus = result.transport
+    sceneState.strudelError = result.error ?? null
+    sceneState.activity.unshift('Strudel transport stopped')
+  } else {
+    const result = await startStrudel(patternSource)
+    sceneState.strudelStatus = result.transport
+    sceneState.strudelError = result.error ?? null
+    sceneState.activity.unshift(
+      result.ok ? 'Strudel transport started' : `Strudel failed · ${result.error}`,
+    )
+  }
+
+  sceneState.activity = sceneState.activity.slice(0, 8)
+  render()
+}
+
 function render() {
   const gemmaUpdate = createGemmaMockUpdate(sceneState)
   const strudelSnapshot = createStrudelSnapshot(sceneState)
+  const runtime = getStrudelRuntimeState()
+  sceneState.strudelStatus = runtime.transport
+  sceneState.strudelError = runtime.lastError
+
   const app = document.querySelector('#app')
   const intensity = sceneState.interventionLevel / 5
   const primary = sceneState.palette[0]
@@ -208,6 +236,7 @@ function render() {
           <div class="actions">
             <button id="nudge">Nudge</button>
             <button id="freeze" class="ghost">${sceneState.isFrozen ? 'Resume AI' : 'Freeze AI'}</button>
+            <button id="strudel-toggle" class="ghost">${sceneState.strudelStatus === 'playing' ? 'Stop Strudel' : 'Start Strudel'}</button>
           </div>
         </section>
 
@@ -248,7 +277,7 @@ function render() {
             <div class="stage__text">
               <h2>Strudel bridge snapshot</h2>
               <p>
-                Next step is replacing this snapshot with a live transport + evaluated patterns.
+                Transport: <strong>${sceneState.strudelStatus}</strong>${sceneState.strudelError ? ` · Error: ${sceneState.strudelError}` : ''}
               </p>
               <pre>${JSON.stringify(strudelSnapshot, null, 2)}</pre>
             </div>
@@ -283,6 +312,10 @@ function render() {
     sceneState.activity.unshift(sceneState.isFrozen ? 'Freeze engaged · autonomous updates paused' : 'Resume engaged · autonomous updates available')
     sceneState.activity = sceneState.activity.slice(0, 8)
     render()
+  })
+
+  document.querySelector('#strudel-toggle').addEventListener('click', async () => {
+    await handleStrudelToggle(gemmaUpdate.changes.strudelPattern)
   })
 
   ensureP5Stage()
