@@ -21,7 +21,7 @@ const sceneState = {
   autoCycleSeconds: 10,
   autoMutationCount: 0,
   lastAutoMutationAt: null,
-  activity: ['System initialized.', 'Editors ready.', 'Live coding mode enabled.'],
+  activity: ['System initialized.', 'Hydra-inspired layout active.', 'Live coding mode enabled.'],
 }
 
 const appState = {
@@ -34,8 +34,6 @@ const sections = ['drift', 'build', 'fracture', 'recovery', 'surge', 'afterglow'
 const motions = ['still', 'pulse', 'glide', 'shiver', 'erratic', 'flood']
 
 let editorsMounted = false
-let p5Editor = null
-let strudelEditor = null
 let autoLoopHandle = null
 
 function clamp(value, min, max) {
@@ -66,12 +64,12 @@ function syncStateForLevel(level) {
   sceneState.palette = generatePalette(level)
 }
 
-function appendActivity(message) {
-  sceneState.activity.unshift(message)
-  sceneState.activity = sceneState.activity.slice(0, 10)
+function appendActivity(message, actor = 'SYSTEM') {
+  sceneState.activity.unshift(`${actor} · ${message}`)
+  sceneState.activity = sceneState.activity.slice(0, 12)
 }
 
-async function executeP5() {
+async function executeP5(actor = 'YOU') {
   const mount = document.querySelector('#p5-stage')
   if (!mount) return
 
@@ -88,14 +86,14 @@ async function executeP5() {
       },
     })
     sceneState.p5Error = null
-    appendActivity('p5 sketch executed')
+    appendActivity('p5 sketch executed', actor)
   } catch (error) {
     console.error(error)
     sceneState.p5Error = error instanceof Error ? error.message : String(error)
-    appendActivity(`p5 error · ${sceneState.p5Error}`)
+    appendActivity(`p5 error · ${sceneState.p5Error}`, 'SYSTEM')
   }
 
-  renderRuntimeBadges()
+  renderPanels()
 }
 
 async function toggleStrudel() {
@@ -104,15 +102,15 @@ async function toggleStrudel() {
 
   if (runtime.transport === 'playing') {
     result = await stopStrudel()
-    appendActivity('Strudel transport stopped')
+    appendActivity('Strudel transport stopped', 'YOU')
   } else {
     result = await startStrudel(appState.strudelCode)
-    appendActivity(result.ok ? 'Strudel transport started' : `Strudel failed · ${result.error}`)
+    appendActivity(result.ok ? 'Strudel transport started' : `Strudel failed · ${result.error}`, result.ok ? 'YOU' : 'SYSTEM')
   }
 
   sceneState.strudelStatus = result.transport
   sceneState.strudelError = result.error ?? null
-  renderRuntimeBadges()
+  renderPanels()
 }
 
 function performAutoMutation() {
@@ -122,9 +120,9 @@ function performAutoMutation() {
   syncStateForLevel(nextLevel)
   sceneState.autoMutationCount += 1
   sceneState.lastAutoMutationAt = new Date().toLocaleTimeString()
-  appendActivity(`Auto mutation #${sceneState.autoMutationCount} · ${sceneState.section}`)
-  executeP5()
-  renderStaticState()
+  appendActivity(`Auto mutation #${sceneState.autoMutationCount} · ${sceneState.section}`, 'GEMMA')
+  executeP5('GEMMA')
+  renderPanels()
 }
 
 function ensureAutoLoop() {
@@ -137,194 +135,193 @@ function ensureAutoLoop() {
 function renderShell() {
   const app = document.querySelector('#app')
   app.innerHTML = `
-    <div class="shell shell--editor">
-      <header class="hero hero--compact">
-        <div>
+    <div class="shell shell--hydra">
+      <header class="topbar panel">
+        <div class="topbar__brand">
           <p class="eyebrow">soft possession</p>
-          <h1>Live coding instrument for p5.js + Strudel + Gemma.</h1>
-          <p class="lede">Write code directly, then decide how much the system gets to interfere.</p>
+          <h1>p5 + Strudel + Gemma</h1>
         </div>
-        <div class="hero-card">
-          <span class="hero-card__label">Current scene</span>
-          <strong id="scene-title"></strong>
-          <span id="scene-subtitle"></span>
+        <div class="topbar__center">
+          <label class="prompt-inline">
+            <span>PROMPT</span>
+            <input id="prompt-input" type="text" />
+          </label>
+          <div class="agency-strip">
+            <span>AGENCY</span>
+            <input id="intervention" type="range" min="0" max="5" step="1" />
+            <strong id="level-label"></strong>
+          </div>
+        </div>
+        <div class="topbar__actions">
+          <button id="freeze" class="ghost">Freeze AI</button>
+          <button id="run-strudel" class="ghost">Start Strudel</button>
+          <button id="run-p5">Run p5</button>
         </div>
       </header>
 
-      <main class="workspace">
-        <section class="panel control-panel">
-          <div class="panel__head">
-            <h2>Control surface</h2>
-            <span class="badge">live</span>
-          </div>
-
-          <label class="prompt">
-            <span>Prompt</span>
-            <textarea id="prompt-input" rows="3"></textarea>
-          </label>
-
-          <div class="slider-wrap">
+      <main class="hydra-layout">
+        <section class="panel visual-panel">
+          <div class="visual-panel__head">
             <div>
-              <span class="label">Intervention</span>
-              <strong id="level-label"></strong>
+              <p class="section-tag">VISUAL</p>
+              <h2>p5.js sketch</h2>
             </div>
-            <input id="intervention" type="range" min="0" max="5" step="1" />
-            <div class="ticks" id="intervention-ticks"></div>
+            <div class="panel-actions">
+              <button id="reset-stage" class="ghost">Reset</button>
+            </div>
           </div>
 
-          <div class="slider-wrap">
-            <div>
-              <span class="label">Autonomy cadence</span>
+          <div class="visual-stack">
+            <div class="editor-frame">
+              <div id="p5-editor" class="editor-host"></div>
+            </div>
+            <div class="stage-frame">
+              <div class="stage-overlay">
+                <span id="scene-title"></span>
+                <span id="scene-subtitle"></span>
+              </div>
+              <div id="p5-stage" class="p5-stage"></div>
+            </div>
+          </div>
+        </section>
+
+        <aside class="panel side-panel">
+          <div class="side-block">
+            <p class="section-tag">SCENE</p>
+            <div class="metric-list">
+              <div><span>tempo</span><strong id="tempo-value"></strong></div>
+              <div><span>density</span><strong id="density-value"></strong></div>
+              <div><span>chaos</span><strong id="chaos-value"></strong></div>
+              <div><span>mutations</span><strong id="mutation-value"></strong></div>
+            </div>
+          </div>
+
+          <div class="side-block">
+            <p class="section-tag">GEMMA</p>
+            <div class="agency-status">
               <strong id="cadence-label"></strong>
-            </div>
-            <input id="cycle-seconds" type="range" min="4" max="20" step="1" />
-          </div>
-
-          <div class="actions actions--wrap">
-            <button id="run-p5">Run p5</button>
-            <button id="run-strudel">Start Strudel</button>
-            <button id="freeze" class="ghost">Freeze AI</button>
-            <button id="reset-stage" class="ghost">Reset p5</button>
-          </div>
-
-          <div class="status-grid">
-            <div class="mini-card">
-              <span>Tempo</span>
-              <strong id="tempo-value"></strong>
-            </div>
-            <div class="mini-card">
-              <span>Density</span>
-              <strong id="density-value"></strong>
-            </div>
-            <div class="mini-card">
-              <span>Chaos</span>
-              <strong id="chaos-value"></strong>
-            </div>
-            <div class="mini-card">
-              <span>Mutations</span>
-              <strong id="mutation-value"></strong>
+              <input id="cycle-seconds" type="range" min="4" max="20" step="1" />
+              <div class="ticks" id="intervention-ticks"></div>
             </div>
           </div>
 
-          <div class="runtime-badges" id="runtime-badges"></div>
-        </section>
-
-        <section class="panel editor-panel">
-          <div class="panel__head">
-            <h2>p5.js</h2>
-            <span class="badge">visual</span>
+          <div class="side-block">
+            <p class="section-tag">RUNTIME</p>
+            <div class="runtime-badges" id="runtime-badges"></div>
           </div>
-          <div class="editor-host" id="p5-editor"></div>
-        </section>
 
-        <section class="panel editor-panel">
-          <div class="panel__head">
-            <h2>Strudel</h2>
-            <span class="badge">pattern</span>
+          <div class="side-block side-block--log">
+            <p class="section-tag">TRACE</p>
+            <ol class="activity" id="activity-log"></ol>
           </div>
-          <div class="editor-host" id="strudel-editor"></div>
-        </section>
+        </aside>
 
-        <section class="panel stage-panel">
-          <div class="panel__head">
-            <h2>Stage</h2>
-            <span class="badge">preview</span>
+        <section class="panel rhythm-panel">
+          <div class="rhythm-panel__head">
+            <div>
+              <p class="section-tag">RHYTHM</p>
+              <h2>Strudel deck</h2>
+            </div>
+            <div class="transport-strip">
+              <span id="transport-state"></span>
+              <button id="run-strudel-secondary" class="ghost">Toggle</button>
+            </div>
           </div>
-          <div class="stage__visual"><div id="p5-stage" class="p5-stage"></div></div>
-        </section>
-
-        <section class="panel log-panel">
-          <div class="panel__head">
-            <h2>Activity</h2>
-            <span class="badge">trace</span>
+          <div class="editor-frame editor-frame--rhythm">
+            <div id="strudel-editor" class="editor-host"></div>
           </div>
-          <ol class="activity" id="activity-log"></ol>
         </section>
       </main>
     </div>
   `
 }
 
-function renderStaticState() {
-  document.querySelector('#scene-title').textContent = sceneState.section
-  document.querySelector('#scene-subtitle').textContent = `${sceneState.motion} motion · tempo ${sceneState.tempo}`
+function renderPanels() {
+  const runtime = getStrudelRuntimeState()
+  sceneState.strudelStatus = runtime.transport
+  sceneState.strudelError = runtime.lastError
+
   document.querySelector('#prompt-input').value = sceneState.prompt
   document.querySelector('#intervention').value = String(sceneState.interventionLevel)
   document.querySelector('#cycle-seconds').value = String(sceneState.autoCycleSeconds)
   document.querySelector('#level-label').textContent = `${sceneState.interventionLevel} · ${interventionLabels[sceneState.interventionLevel]}`
-  document.querySelector('#cadence-label').textContent = `${sceneState.autoCycleSeconds}s · ${sceneState.isFrozen ? 'paused' : 'active'}`
+  document.querySelector('#scene-title').textContent = sceneState.section
+  document.querySelector('#scene-subtitle').textContent = `${sceneState.motion} · tempo ${sceneState.tempo}`
   document.querySelector('#tempo-value').textContent = String(sceneState.tempo)
   document.querySelector('#density-value').textContent = sceneState.density.toFixed(2)
   document.querySelector('#chaos-value').textContent = sceneState.chaos.toFixed(2)
   document.querySelector('#mutation-value').textContent = String(sceneState.autoMutationCount)
-  document.querySelector('#run-strudel').textContent = sceneState.strudelStatus === 'playing' ? 'Stop Strudel' : 'Start Strudel'
+  document.querySelector('#cadence-label').textContent = `${sceneState.autoCycleSeconds}s cadence · ${sceneState.isFrozen ? 'paused' : 'active'}`
   document.querySelector('#freeze').textContent = sceneState.isFrozen ? 'Resume AI' : 'Freeze AI'
+  document.querySelector('#run-strudel').textContent = sceneState.strudelStatus === 'playing' ? 'Stop Strudel' : 'Start Strudel'
+  document.querySelector('#run-strudel-secondary').textContent = sceneState.strudelStatus === 'playing' ? 'Stop' : 'Start'
+  document.querySelector('#transport-state').textContent = `transport · ${sceneState.strudelStatus}`
+
   document.querySelector('#intervention-ticks').innerHTML = interventionLabels
     .map((label, index) => `<span ${index === sceneState.interventionLevel ? 'class="active"' : ''}>${label}</span>`)
     .join('')
-  document.querySelector('#activity-log').innerHTML = sceneState.activity.map((item) => `<li>${item}</li>`).join('')
-}
 
-function renderRuntimeBadges() {
-  const runtime = getStrudelRuntimeState()
+  document.querySelector('#activity-log').innerHTML = sceneState.activity.map((item) => `<li>${item}</li>`).join('')
+
   const badges = [
     `p5 ${sceneState.p5Error ? 'error' : 'ready'}`,
     `strudel ${runtime.transport}`,
     sceneState.lastAutoMutationAt ? `last auto ${sceneState.lastAutoMutationAt}` : 'no auto mutations yet',
   ]
-
   if (sceneState.p5Error) badges.push(`p5: ${sceneState.p5Error}`)
   if (sceneState.strudelError) badges.push(`strudel: ${sceneState.strudelError}`)
-
   document.querySelector('#runtime-badges').innerHTML = badges.map((item) => `<span>${item}</span>`).join('')
 }
 
 function bindControls() {
   document.querySelector('#prompt-input').addEventListener('change', (event) => {
     sceneState.prompt = event.target.value
-    appendActivity(`Intent updated · ${sceneState.prompt}`)
-    renderStaticState()
+    appendActivity(`Intent updated · ${sceneState.prompt}`, 'YOU')
+    renderPanels()
   })
 
   document.querySelector('#intervention').addEventListener('input', (event) => {
     syncStateForLevel(Number(event.target.value))
-    appendActivity(`Intervention ${sceneState.interventionLevel} · ${sceneState.section}`)
-    executeP5()
-    renderStaticState()
+    appendActivity(`Intervention ${sceneState.interventionLevel} · ${sceneState.section}`, 'YOU')
+    executeP5('YOU')
+    renderPanels()
   })
 
   document.querySelector('#cycle-seconds').addEventListener('input', (event) => {
     sceneState.autoCycleSeconds = Number(event.target.value)
-    appendActivity(`Autonomy cadence set to ${sceneState.autoCycleSeconds}s`)
+    appendActivity(`Autonomy cadence set to ${sceneState.autoCycleSeconds}s`, 'YOU')
     ensureAutoLoop()
-    renderStaticState()
+    renderPanels()
   })
 
   document.querySelector('#run-p5').addEventListener('click', () => {
-    executeP5()
+    executeP5('YOU')
   })
 
   document.querySelector('#run-strudel').addEventListener('click', async () => {
     await toggleStrudel()
-    renderStaticState()
+  })
+
+  document.querySelector('#run-strudel-secondary').addEventListener('click', async () => {
+    await toggleStrudel()
   })
 
   document.querySelector('#freeze').addEventListener('click', () => {
     sceneState.isFrozen = !sceneState.isFrozen
-    appendActivity(sceneState.isFrozen ? 'Freeze engaged' : 'Resume engaged')
-    renderStaticState()
+    appendActivity(sceneState.isFrozen ? 'Freeze engaged' : 'Resume engaged', 'YOU')
+    renderPanels()
   })
 
   document.querySelector('#reset-stage').addEventListener('click', () => {
     destroyP5Sketch()
-    executeP5()
+    executeP5('YOU')
   })
 }
 
 function mountEditors() {
   if (editorsMounted) return
 
-  p5Editor = createCodeEditor({
+  createCodeEditor({
     parent: document.querySelector('#p5-editor'),
     doc: appState.p5Code,
     onChange: (value) => {
@@ -332,7 +329,7 @@ function mountEditors() {
     },
   })
 
-  strudelEditor = createCodeEditor({
+  createCodeEditor({
     parent: document.querySelector('#strudel-editor'),
     doc: appState.strudelCode,
     onChange: (value) => {
@@ -349,9 +346,8 @@ function init() {
   bindControls()
   mountEditors()
   ensureAutoLoop()
-  renderStaticState()
-  renderRuntimeBadges()
-  executeP5()
+  renderPanels()
+  executeP5('SYSTEM')
 }
 
 init()
