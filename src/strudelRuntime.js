@@ -16,23 +16,19 @@ async function loadStrudel() {
 async function ensureStrudelStarted(mod) {
   if (strudelState.started) return
 
-  await mod.initStrudel()
-  await mod.samples(
-    {
-      bd: ['bd/BT0AADA.wav'],
-      sd: ['sd/rytm-01-classic.wav'],
-      hh: ['hh/000_hh3closedhh.wav'],
-      cp: ['cp/000_cp.wav'],
-    },
-    'github:tidalcycles/dirt-samples',
-  )
+  await mod.initStrudel({ prebake: async () => {
+    await mod.samples(
+      {
+        bd: ['bd/BT0AADA.wav'],
+        sd: ['sd/rytm-01-classic.wav'],
+        hh: ['hh/000_hh3closedhh.wav'],
+        cp: ['cp/000_cp.wav'],
+      },
+      'github:tidalcycles/dirt-samples',
+    )
+  } })
 
   strudelState.started = true
-}
-
-function buildPattern(mod, patternSource) {
-  const fn = new Function(...Object.keys(mod), `return (${patternSource});`)
-  return fn(...Object.values(mod))
 }
 
 export async function startStrudel(patternSource) {
@@ -44,12 +40,7 @@ export async function startStrudel(patternSource) {
       mod.silence()
     }
 
-    const pattern = buildPattern(mod, patternSource)
-    if (!pattern?.play) {
-      throw new Error('Pattern did not compile to a playable Strudel pattern')
-    }
-
-    pattern.play()
+    await mod.evaluate(patternSource, true)
 
     strudelState.transport = 'playing'
     strudelState.pattern = patternSource
