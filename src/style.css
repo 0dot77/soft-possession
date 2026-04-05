@@ -1,7 +1,7 @@
 :root {
   font-family: Inter, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-  color: rgba(244, 247, 255, 0.96);
-  background: #07090f;
+  color: rgba(244, 247, 255, 0.94);
+  background: #05070b;
   font-synthesis: none;
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
@@ -16,9 +16,7 @@ body {
   margin: 0;
   min-width: 320px;
   min-height: 100vh;
-  background:
-    radial-gradient(circle at top, rgba(125, 211, 252, 0.08), transparent 24%),
-    linear-gradient(180deg, #07090f 0%, #0d1018 100%);
+  background: #05070b;
 }
 
 button,
@@ -41,25 +39,28 @@ input[type='text'] {
 }
 
 .shell {
-  width: min(1600px, calc(100vw - 24px));
-  margin: 0 auto;
-  padding: 14px 0 18px;
+  min-height: 100vh;
 }
 
 .panel {
-  background: rgba(8, 11, 18, 0.84);
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  border-radius: 18px;
-  backdrop-filter: blur(14px);
+  background: transparent;
+  border: none;
+  border-radius: 0;
+  backdrop-filter: none;
 }
 
 .topbar {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 20;
   display: grid;
-  grid-template-columns: 260px 1fr 320px;
-  gap: 16px;
+  grid-template-columns: 180px 1fr auto;
+  gap: 14px;
   align-items: center;
-  padding: 14px 16px;
-  margin-bottom: 14px;
+  padding: 10px 14px;
+  background: linear-gradient(180deg, rgba(4, 6, 10, 0.88), rgba(4, 6, 10, 0.22));
 }
 
 .eyebrow,
@@ -67,9 +68,9 @@ input[type='text'] {
 .prompt-inline span,
 .agency-strip span {
   text-transform: uppercase;
-  letter-spacing: 0.18em;
-  font-size: 0.7rem;
-  color: rgba(244, 247, 255, 0.5);
+  letter-spacing: 0.16em;
+  font-size: 0.64rem;
+  color: rgba(244, 247, 255, 0.44);
 }
 
 .topbar h1,
@@ -79,73 +80,78 @@ p {
 }
 
 .topbar h1 {
-  font-size: 1.2rem;
-  letter-spacing: -0.03em;
+  font-size: 0.9rem;
+  letter-spacing: 0.02em;
+  font-weight: 600;
+  color: rgba(244, 247, 255, 0.8);
 }
 
 .topbar__center {
   display: grid;
-  gap: 10px;
+  gap: 6px;
 }
 
 .prompt-inline,
 .agency-strip {
   display: grid;
-  gap: 6px;
+  gap: 4px;
 }
 
 .prompt-inline input {
-  background: rgba(255, 255, 255, 0.04);
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  border-radius: 12px;
-  padding: 10px 12px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: 999px;
+  padding: 8px 12px;
   color: inherit;
 }
 
 .agency-strip {
   grid-template-columns: auto 1fr auto;
   align-items: center;
-  gap: 12px;
+  gap: 10px;
 }
 
 .topbar__actions {
   display: flex;
   justify-content: flex-end;
-  gap: 10px;
+  gap: 8px;
 }
 
 button {
-  padding: 10px 14px;
+  padding: 8px 12px;
   border-radius: 999px;
-  background: #f472b6;
+  background: rgba(244, 114, 182, 0.9);
   color: #130914;
   font-weight: 700;
 }
 
 button.ghost {
-  background: transparent;
-  color: inherit;
-  border-color: rgba(255, 255, 255, 0.14);
+  background: rgba(255, 255, 255, 0.05);
+  color: rgba(244, 247, 255, 0.88);
+  border-color: rgba(255, 255, 255, 0.08);
 }
 
 .stage-layout {
+  min-height: 100vh;
   display: grid;
-  grid-template-rows: minmax(640px, 1fr) auto minmax(260px, auto);
-  gap: 14px;
+  grid-template-rows: 1fr auto auto;
 }
 
 .stage-panel-main {
-  padding: 14px;
-  display: grid;
-  gap: 12px;
+  position: relative;
+  padding: 0;
 }
 
-.stage-toolbar,
-.dock-panel__head {
+.stage-toolbar {
+  position: absolute;
+  top: 70px;
+  left: 14px;
+  right: 14px;
+  z-index: 12;
   display: flex;
   justify-content: space-between;
-  align-items: center;
-  gap: 12px;
+  align-items: flex-start;
+  pointer-events: none;
 }
 
 .stage-toolbar__left,
@@ -154,26 +160,23 @@ button.ghost {
 .panel-actions,
 .dock-meta {
   display: flex;
-  gap: 10px;
+  gap: 8px;
   align-items: center;
   flex-wrap: wrap;
+  pointer-events: auto;
 }
 
 .stage-toolbar__right span,
 .dock-meta {
-  font-size: 0.74rem;
-  color: rgba(244, 247, 255, 0.72);
+  font-size: 0.72rem;
+  color: rgba(244, 247, 255, 0.68);
 }
 
 .stage-surface {
   position: relative;
-  min-height: 580px;
-  border-radius: 16px;
+  min-height: 100vh;
   overflow: hidden;
-  border: 1px solid rgba(255, 255, 255, 0.06);
-  background:
-    radial-gradient(circle at center, rgba(125, 211, 252, 0.1), transparent 35%),
-    linear-gradient(180deg, rgba(255, 255, 255, 0.03), rgba(255, 255, 255, 0.01));
+  background: #05070b;
 }
 
 .p5-stage,
@@ -184,12 +187,12 @@ button.ghost {
 }
 
 .p5-stage {
-  min-height: 580px;
+  min-height: 100vh;
 }
 
 .stage-overlay-info {
   position: absolute;
-  inset: 16px auto auto 16px;
+  inset: auto auto 64px 18px;
   z-index: 2;
   display: flex;
   flex-direction: column;
@@ -203,34 +206,38 @@ button.ghost {
 }
 
 .stage-overlay-info span:last-child {
-  font-size: 0.8rem;
-  color: rgba(244, 247, 255, 0.62);
+  font-size: 0.76rem;
+  color: rgba(244, 247, 255, 0.58);
 }
 
 .p5-editor-overlay {
   position: absolute;
-  inset: 16px auto 16px 16px;
-  width: min(520px, calc(100% - 32px));
-  border-radius: 16px;
-  background: rgba(7, 10, 18, 0.88);
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  backdrop-filter: blur(14px);
+  top: 118px;
+  left: 18px;
+  bottom: 92px;
+  width: min(420px, calc(100vw - 36px));
+  border-radius: 12px;
+  background: linear-gradient(180deg, rgba(6, 8, 12, 0.72), rgba(6, 8, 12, 0.34));
+  border: 1px solid rgba(255, 255, 255, 0.04);
+  backdrop-filter: blur(10px);
   display: grid;
   grid-template-rows: auto 1fr;
-  transform: translateX(-108%);
-  transition: transform 220ms ease;
+  transform: translateX(-112%);
+  transition: transform 220ms ease, opacity 220ms ease;
+  opacity: 0;
   z-index: 3;
 }
 
 .p5-editor-overlay.is-open {
   transform: translateX(0);
+  opacity: 1;
 }
 
 .p5-editor-overlay__head {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 12px 12px 0;
+  padding: 10px 10px 0;
 }
 
 .editor-host {
@@ -239,32 +246,48 @@ button.ghost {
 
 .editor-host--visual {
   height: 100%;
-  min-height: 500px;
+  min-height: 0;
 }
 
 .dock-launcher {
-  padding: 8px;
+  position: fixed;
+  left: 50%;
+  bottom: 14px;
+  z-index: 18;
+  transform: translateX(-50%);
+  padding: 6px;
   display: flex;
-  gap: 8px;
-  justify-content: center;
+  gap: 6px;
+  background: rgba(6, 8, 12, 0.72);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: 999px;
+  backdrop-filter: blur(10px);
 }
 
 .dock-tab {
   background: transparent;
   color: rgba(244, 247, 255, 0.68);
-  border-color: rgba(255, 255, 255, 0.08);
+  border-color: transparent;
 }
 
 .dock-tab.active {
-  background: rgba(244, 114, 182, 0.15);
+  background: rgba(255, 255, 255, 0.08);
   color: white;
-  border-color: rgba(244, 114, 182, 0.4);
 }
 
 .dock-panel {
-  padding: 14px;
+  position: fixed;
+  left: 14px;
+  right: 14px;
+  bottom: 64px;
+  z-index: 17;
+  padding: 12px;
   display: grid;
-  gap: 12px;
+  gap: 10px;
+  border-radius: 16px;
+  background: linear-gradient(180deg, rgba(6, 8, 12, 0.82), rgba(6, 8, 12, 0.56));
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  backdrop-filter: blur(12px);
 }
 
 .dock-view {
@@ -276,39 +299,39 @@ button.ghost {
 }
 
 .editor-host--dock {
-  min-height: 220px;
-  border-radius: 14px;
+  min-height: 180px;
+  border-radius: 12px;
   overflow: hidden;
-  border: 1px solid rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.04);
   background: rgba(255, 255, 255, 0.02);
 }
 
 .ai-grid {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
-  gap: 12px;
+  gap: 10px;
 }
 
 .mini-card {
-  padding: 12px;
-  border-radius: 14px;
+  padding: 10px;
+  border-radius: 12px;
   background: rgba(255, 255, 255, 0.03);
-  border: 1px solid rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.04);
   display: grid;
-  gap: 8px;
+  gap: 6px;
 }
 
 .mini-card span,
 .mini-card small {
-  color: rgba(244, 247, 255, 0.6);
+  color: rgba(244, 247, 255, 0.58);
 }
 
 .ticks {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
   gap: 6px;
-  font-size: 0.72rem;
-  color: rgba(244, 247, 255, 0.36);
+  font-size: 0.7rem;
+  color: rgba(244, 247, 255, 0.34);
 }
 
 .ticks .active {
@@ -319,12 +342,14 @@ button.ghost {
   margin: 0;
   padding-left: 18px;
   display: grid;
-  gap: 8px;
+  gap: 6px;
   color: rgba(244, 247, 255, 0.72);
-  font-size: 0.84rem;
+  font-size: 0.8rem;
+  max-height: 180px;
+  overflow: auto;
 }
 
-@media (max-width: 1280px) {
+@media (max-width: 900px) {
   .topbar {
     grid-template-columns: 1fr;
   }
@@ -338,22 +363,21 @@ button.ghost {
     grid-template-columns: 1fr;
   }
 
-  .stage-layout {
-    grid-template-rows: minmax(520px, 1fr) auto minmax(280px, auto);
-  }
-
-  .stage-surface,
-  .p5-stage {
-    min-height: 460px;
-  }
-
   .p5-editor-overlay {
-    inset: auto 12px 12px 12px;
+    top: auto;
+    left: 12px;
+    right: 12px;
+    bottom: 118px;
     width: auto;
-    transform: translateY(110%);
+    height: min(46vh, 420px);
+    transform: translateY(112%);
   }
 
   .p5-editor-overlay.is-open {
     transform: translateY(0);
+  }
+
+  .dock-panel {
+    bottom: 58px;
   }
 }
