@@ -212,17 +212,16 @@ button.ghost {
 
 .p5-editor-overlay {
   position: absolute;
-  top: 118px;
-  left: 18px;
-  bottom: 92px;
-  width: min(420px, calc(100vw - 36px));
-  border-radius: 12px;
-  background: linear-gradient(180deg, rgba(6, 8, 12, 0.72), rgba(6, 8, 12, 0.34));
-  border: 1px solid rgba(255, 255, 255, 0.04);
-  backdrop-filter: blur(10px);
+  top: 112px;
+  left: 16px;
+  bottom: 86px;
+  width: min(340px, calc(100vw - 32px));
+  background: linear-gradient(180deg, rgba(5, 7, 11, 0.34), rgba(5, 7, 11, 0.08));
+  border: none;
+  backdrop-filter: blur(4px);
   display: grid;
   grid-template-rows: auto 1fr;
-  transform: translateX(-112%);
+  transform: translateX(-108%);
   transition: transform 220ms ease, opacity 220ms ease;
   opacity: 0;
   z-index: 3;
@@ -237,7 +236,13 @@ button.ghost {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 10px 10px 0;
+  padding: 4px 6px 0;
+}
+
+.code-hint {
+  font-size: 0.68rem;
+  letter-spacing: 0.08em;
+  color: rgba(244, 247, 255, 0.45);
 }
 
 .editor-host {
@@ -281,13 +286,13 @@ button.ghost {
   right: 14px;
   bottom: 64px;
   z-index: 17;
-  padding: 12px;
+  padding: 10px;
   display: grid;
-  gap: 10px;
-  border-radius: 16px;
-  background: linear-gradient(180deg, rgba(6, 8, 12, 0.82), rgba(6, 8, 12, 0.56));
-  border: 1px solid rgba(255, 255, 255, 0.06);
-  backdrop-filter: blur(12px);
+  gap: 8px;
+  border-radius: 14px;
+  background: linear-gradient(180deg, rgba(6, 8, 12, 0.62), rgba(6, 8, 12, 0.38));
+  border: 1px solid rgba(255, 255, 255, 0.04);
+  backdrop-filter: blur(10px);
 }
 
 .dock-view {

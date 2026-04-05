@@ -23,6 +23,7 @@ const sceneState = {
   lastAutoMutationAt: null,
   activeDock: 'rhythm',
   p5EditorOpen: true,
+  p5AutoRun: true,
   activity: ['System initialized.', 'Stage-centered layout active.', 'Live coding mode enabled.'],
 }
 
@@ -42,6 +43,7 @@ const dockLabels = {
 
 let editorsMounted = false
 let autoLoopHandle = null
+let p5AutoRunTimer = null
 
 function clamp(value, min, max) {
   return Math.min(max, Math.max(min, value))
@@ -101,6 +103,14 @@ async function executeP5(actor = 'YOU') {
   }
 
   renderPanels()
+}
+
+function scheduleP5AutoRun() {
+  if (!sceneState.p5AutoRun) return
+  if (p5AutoRunTimer) window.clearTimeout(p5AutoRunTimer)
+  p5AutoRunTimer = window.setTimeout(() => {
+    executeP5('YOU')
+  }, 350)
 }
 
 async function toggleStrudel() {
@@ -168,8 +178,8 @@ function renderShell() {
         <section class="panel stage-panel-main">
           <div class="stage-toolbar">
             <div class="stage-toolbar__left">
-              <button id="toggle-p5-editor" class="ghost">Toggle p5 editor</button>
-              <button id="reset-stage" class="ghost">Reset p5</button>
+              <button id="toggle-p5-editor" class="ghost">Code</button>
+              <button id="toggle-p5-autorun" class="ghost">Auto</button>
             </div>
             <div class="stage-toolbar__right" id="runtime-badges"></div>
           </div>
@@ -184,13 +194,8 @@ function renderShell() {
 
             <div class="p5-editor-overlay ${sceneState.p5EditorOpen ? 'is-open' : ''}" id="p5-overlay">
               <div class="p5-editor-overlay__head">
-                <div>
-                  <p class="section-tag">VISUAL</p>
-                  <h2>p5.js sketch</h2>
-                </div>
-                <div class="panel-actions">
-                  <button id="close-p5-overlay" class="ghost">Hide</button>
-                </div>
+                <span class="code-hint">p5.js live layer</span>
+                <button id="close-p5-overlay" class="ghost">Hide</button>
               </div>
               <div id="p5-editor" class="editor-host editor-host--visual"></div>
             </div>
@@ -266,6 +271,7 @@ function renderPanels() {
   document.querySelector('#dock-title').textContent = sceneState.activeDock === 'rhythm' ? 'Strudel deck' : sceneState.activeDock === 'ai' ? 'Gemma agency' : 'Event trace'
   document.querySelector('#dock-meta').textContent = sceneState.activeDock === 'rhythm' ? `transport · ${sceneState.strudelStatus}` : sceneState.activeDock === 'ai' ? `tempo ${sceneState.tempo}` : `${sceneState.activity.length} events`
   document.querySelector('#p5-overlay').classList.toggle('is-open', sceneState.p5EditorOpen)
+  document.querySelector('#toggle-p5-autorun').textContent = sceneState.p5AutoRun ? 'Auto on' : 'Auto off'
 
   document.querySelectorAll('.dock-tab').forEach((button) => {
     button.classList.toggle('active', button.dataset.dock === sceneState.activeDock)
@@ -339,14 +345,14 @@ function bindControls() {
     renderPanels()
   })
 
-  document.querySelector('#close-p5-overlay').addEventListener('click', () => {
-    sceneState.p5EditorOpen = false
+  document.querySelector('#toggle-p5-autorun').addEventListener('click', () => {
+    sceneState.p5AutoRun = !sceneState.p5AutoRun
     renderPanels()
   })
 
-  document.querySelector('#reset-stage').addEventListener('click', () => {
-    destroyP5Sketch()
-    executeP5('YOU')
+  document.querySelector('#close-p5-overlay').addEventListener('click', () => {
+    sceneState.p5EditorOpen = false
+    renderPanels()
   })
 
   document.querySelectorAll('.dock-tab').forEach((button) => {
@@ -385,6 +391,7 @@ function mountEditors() {
     doc: appState.p5Code,
     onChange: (value) => {
       appState.p5Code = value
+      scheduleP5AutoRun()
     },
   })
 
