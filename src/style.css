@@ -212,13 +212,13 @@ button.ghost {
 
 .p5-editor-overlay {
   position: absolute;
-  top: 112px;
-  left: 16px;
-  bottom: 86px;
-  width: min(340px, calc(100vw - 32px));
-  background: linear-gradient(180deg, rgba(5, 7, 11, 0.34), rgba(5, 7, 11, 0.08));
+  top: 106px;
+  left: 14px;
+  width: min(280px, calc(100vw - 28px));
+  max-height: min(54vh, 520px);
+  background: linear-gradient(180deg, rgba(5, 7, 11, 0.12), rgba(5, 7, 11, 0.02));
   border: none;
-  backdrop-filter: blur(4px);
+  backdrop-filter: blur(2px);
   display: grid;
   grid-template-rows: auto 1fr;
   transform: translateX(-108%);
@@ -236,13 +236,13 @@ button.ghost {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 4px 6px 0;
+  padding: 2px 4px 0;
 }
 
 .code-hint {
-  font-size: 0.68rem;
+  font-size: 0.62rem;
   letter-spacing: 0.08em;
-  color: rgba(244, 247, 255, 0.45);
+  color: rgba(244, 247, 255, 0.34);
 }
 
 .editor-host {
@@ -252,6 +252,14 @@ button.ghost {
 .editor-host--visual {
   height: 100%;
   min-height: 0;
+}
+
+.editor-host--visual .cm-editor {
+  background: transparent !important;
+}
+
+.editor-host--visual .cm-gutters {
+  width: 20px;
 }
 
 .dock-launcher {
@@ -286,13 +294,13 @@ button.ghost {
   right: 14px;
   bottom: 64px;
   z-index: 17;
-  padding: 10px;
+  padding: 8px;
   display: grid;
-  gap: 8px;
-  border-radius: 14px;
-  background: linear-gradient(180deg, rgba(6, 8, 12, 0.62), rgba(6, 8, 12, 0.38));
-  border: 1px solid rgba(255, 255, 255, 0.04);
-  backdrop-filter: blur(10px);
+  gap: 6px;
+  border-radius: 12px;
+  background: linear-gradient(180deg, rgba(6, 8, 12, 0.42), rgba(6, 8, 12, 0.22));
+  border: 1px solid rgba(255, 255, 255, 0.03);
+  backdrop-filter: blur(8px);
 }
 
 .dock-view {
@@ -304,11 +312,11 @@ button.ghost {
 }
 
 .editor-host--dock {
-  min-height: 180px;
-  border-radius: 12px;
+  min-height: 132px;
+  border-radius: 10px;
   overflow: hidden;
-  border: 1px solid rgba(255, 255, 255, 0.04);
-  background: rgba(255, 255, 255, 0.02);
+  border: 1px solid rgba(255, 255, 255, 0.03);
+  background: rgba(255, 255, 255, 0.015);
 }
 
 .ai-grid {

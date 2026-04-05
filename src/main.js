@@ -389,6 +389,7 @@ function mountEditors() {
   createCodeEditor({
     parent: document.querySelector('#p5-editor'),
     doc: appState.p5Code,
+    mode: 'overlay',
     onChange: (value) => {
       appState.p5Code = value
       scheduleP5AutoRun()
