@@ -249,7 +249,7 @@ button.ghost {
   position: absolute;
   top: 98px;
   left: 16px;
-  bottom: 78px;
+  bottom: 26px;
   width: min(250px, calc(100vw - 32px));
   background: linear-gradient(180deg, rgba(18, 8, 29, 0.06), rgba(18, 8, 29, 0.01));
   border-left: 2px solid rgba(127, 208, 197, 0.28);
