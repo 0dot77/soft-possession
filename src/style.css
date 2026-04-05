@@ -176,7 +176,7 @@ button.ghost {
 
 .stage-toolbar {
   position: absolute;
-  top: 84px;
+  top: 74px;
   left: 14px;
   right: 14px;
   z-index: 12;
@@ -247,10 +247,10 @@ button.ghost {
 
 .p5-editor-overlay {
   position: absolute;
-  top: 98px;
+  top: 108px;
   left: 16px;
-  bottom: 26px;
-  width: min(250px, calc(100vw - 32px));
+  bottom: 34px;
+  width: min(460px, calc(100vw - 32px));
   background: linear-gradient(180deg, rgba(18, 8, 29, 0.06), rgba(18, 8, 29, 0.01));
   border-left: 2px solid rgba(127, 208, 197, 0.28);
   border-top: none;
@@ -299,8 +299,8 @@ button.ghost {
 }
 
 .editor-host--visual .cm-gutters {
-  width: 14px;
-  color: rgba(244, 230, 210, 0.16) !important;
+  width: 10px;
+  color: rgba(244, 230, 210, 0.12) !important;
 }
 
 .editor-host--visual .cm-content {
