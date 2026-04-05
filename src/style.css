@@ -22,7 +22,6 @@ body {
 }
 
 button,
-textarea,
 input {
   font: inherit;
 }
@@ -65,7 +64,6 @@ input[type='text'] {
 
 .eyebrow,
 .section-tag,
-.badge,
 .prompt-inline span,
 .agency-strip span {
   text-transform: uppercase;
@@ -130,74 +128,52 @@ button.ghost {
   border-color: rgba(255, 255, 255, 0.14);
 }
 
-.hydra-layout {
+.stage-layout {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 320px;
-  grid-template-rows: minmax(560px, 1fr) minmax(220px, auto);
+  grid-template-rows: minmax(640px, 1fr) auto minmax(260px, auto);
   gap: 14px;
 }
 
-.visual-panel {
+.stage-panel-main {
   padding: 14px;
   display: grid;
-  grid-template-rows: auto 1fr;
   gap: 12px;
 }
 
-.visual-panel__head,
-.rhythm-panel__head {
+.stage-toolbar,
+.dock-panel__head {
   display: flex;
   justify-content: space-between;
   align-items: center;
-}
-
-.visual-stack {
-  display: grid;
-  grid-template-columns: minmax(360px, 0.48fr) minmax(0, 1fr);
   gap: 12px;
-  min-height: 0;
 }
 
-.editor-frame,
-.stage-frame {
-  min-height: 0;
-  border-radius: 14px;
+.stage-toolbar__left,
+.stage-toolbar__right,
+.dock-actions,
+.panel-actions,
+.dock-meta {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.stage-toolbar__right span,
+.dock-meta {
+  font-size: 0.74rem;
+  color: rgba(244, 247, 255, 0.72);
+}
+
+.stage-surface {
+  position: relative;
+  min-height: 580px;
+  border-radius: 16px;
   overflow: hidden;
   border: 1px solid rgba(255, 255, 255, 0.06);
-  background: rgba(255, 255, 255, 0.025);
-}
-
-.editor-host {
-  height: 100%;
-  min-height: 520px;
-}
-
-.stage-frame {
-  position: relative;
   background:
     radial-gradient(circle at center, rgba(125, 211, 252, 0.1), transparent 35%),
     linear-gradient(180deg, rgba(255, 255, 255, 0.03), rgba(255, 255, 255, 0.01));
-}
-
-.stage-overlay {
-  position: absolute;
-  inset: 0 auto auto 0;
-  z-index: 2;
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  padding: 12px;
-  pointer-events: none;
-}
-
-.stage-overlay span:first-child {
-  font-size: 1rem;
-  text-transform: capitalize;
-}
-
-.stage-overlay span:last-child {
-  font-size: 0.8rem;
-  color: rgba(244, 247, 255, 0.62);
 }
 
 .p5-stage,
@@ -208,52 +184,128 @@ button.ghost {
 }
 
 .p5-stage {
-  min-height: 520px;
+  min-height: 580px;
 }
 
-.side-panel {
+.stage-overlay-info {
+  position: absolute;
+  inset: 16px auto auto 16px;
+  z-index: 2;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  pointer-events: none;
+}
+
+.stage-overlay-info span:first-child {
+  font-size: 1rem;
+  text-transform: capitalize;
+}
+
+.stage-overlay-info span:last-child {
+  font-size: 0.8rem;
+  color: rgba(244, 247, 255, 0.62);
+}
+
+.p5-editor-overlay {
+  position: absolute;
+  inset: 16px auto 16px 16px;
+  width: min(520px, calc(100% - 32px));
+  border-radius: 16px;
+  background: rgba(7, 10, 18, 0.88);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  backdrop-filter: blur(14px);
+  display: grid;
+  grid-template-rows: auto 1fr;
+  transform: translateX(-108%);
+  transition: transform 220ms ease;
+  z-index: 3;
+}
+
+.p5-editor-overlay.is-open {
+  transform: translateX(0);
+}
+
+.p5-editor-overlay__head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px 12px 0;
+}
+
+.editor-host {
+  min-height: 0;
+}
+
+.editor-host--visual {
+  height: 100%;
+  min-height: 500px;
+}
+
+.dock-launcher {
+  padding: 8px;
+  display: flex;
+  gap: 8px;
+  justify-content: center;
+}
+
+.dock-tab {
+  background: transparent;
+  color: rgba(244, 247, 255, 0.68);
+  border-color: rgba(255, 255, 255, 0.08);
+}
+
+.dock-tab.active {
+  background: rgba(244, 114, 182, 0.15);
+  color: white;
+  border-color: rgba(244, 114, 182, 0.4);
+}
+
+.dock-panel {
   padding: 14px;
   display: grid;
   gap: 12px;
-  align-content: start;
 }
 
-.side-block {
+.dock-view {
+  display: none;
+}
+
+.dock-view.active {
+  display: block;
+}
+
+.editor-host--dock {
+  min-height: 220px;
+  border-radius: 14px;
+  overflow: hidden;
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  background: rgba(255, 255, 255, 0.02);
+}
+
+.ai-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 12px;
+}
+
+.mini-card {
   padding: 12px;
   border-radius: 14px;
   background: rgba(255, 255, 255, 0.03);
   border: 1px solid rgba(255, 255, 255, 0.05);
   display: grid;
-  gap: 10px;
-}
-
-.side-block--log {
-  min-height: 0;
-}
-
-.metric-list {
-  display: grid;
   gap: 8px;
 }
 
-.metric-list div {
-  display: flex;
-  justify-content: space-between;
-  gap: 12px;
-}
-
-.metric-list span {
+.mini-card span,
+.mini-card small {
   color: rgba(244, 247, 255, 0.6);
-}
-
-.agency-status {
-  display: grid;
-  gap: 10px;
 }
 
 .ticks {
   display: grid;
-  grid-template-columns: repeat(2, 1fr);
+  grid-template-columns: repeat(3, 1fr);
   gap: 6px;
   font-size: 0.72rem;
   color: rgba(244, 247, 255, 0.36);
@@ -263,20 +315,6 @@ button.ghost {
   color: white;
 }
 
-.runtime-badges {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-}
-
-.runtime-badges span {
-  padding: 7px 9px;
-  border-radius: 999px;
-  background: rgba(255, 255, 255, 0.05);
-  font-size: 0.74rem;
-  color: rgba(244, 247, 255, 0.8);
-}
-
 .activity {
   margin: 0;
   padding-left: 18px;
@@ -284,28 +322,6 @@ button.ghost {
   gap: 8px;
   color: rgba(244, 247, 255, 0.72);
   font-size: 0.84rem;
-}
-
-.rhythm-panel {
-  grid-column: 1 / span 2;
-  padding: 14px;
-  display: grid;
-  gap: 12px;
-}
-
-.transport-strip {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-}
-
-.transport-strip span {
-  font-size: 0.78rem;
-  color: rgba(244, 247, 255, 0.68);
-}
-
-.editor-frame--rhythm .editor-host {
-  min-height: 220px;
 }
 
 @media (max-width: 1280px) {
@@ -318,21 +334,26 @@ button.ghost {
     flex-wrap: wrap;
   }
 
-  .hydra-layout {
-    grid-template-columns: 1fr;
-    grid-template-rows: auto;
-  }
-
-  .rhythm-panel {
-    grid-column: auto;
-  }
-
-  .visual-stack {
+  .ai-grid {
     grid-template-columns: 1fr;
   }
 
-  .editor-host,
+  .stage-layout {
+    grid-template-rows: minmax(520px, 1fr) auto minmax(280px, auto);
+  }
+
+  .stage-surface,
   .p5-stage {
-    min-height: 360px;
+    min-height: 460px;
+  }
+
+  .p5-editor-overlay {
+    inset: auto 12px 12px 12px;
+    width: auto;
+    transform: translateY(110%);
+  }
+
+  .p5-editor-overlay.is-open {
+    transform: translateY(0);
   }
 }
