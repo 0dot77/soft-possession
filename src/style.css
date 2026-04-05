@@ -249,8 +249,8 @@ button.ghost {
   position: absolute;
   top: 98px;
   left: 16px;
+  bottom: 78px;
   width: min(250px, calc(100vw - 32px));
-  max-height: min(50vh, 420px);
   background: linear-gradient(180deg, rgba(18, 8, 29, 0.06), rgba(18, 8, 29, 0.01));
   border-left: 2px solid rgba(127, 208, 197, 0.28);
   border-top: none;
@@ -259,7 +259,7 @@ button.ghost {
   border-radius: 0;
   backdrop-filter: blur(1px);
   display: grid;
-  grid-template-rows: auto 1fr;
+  grid-template-rows: auto minmax(0, 1fr);
   transform: translateX(-108%);
   transition: transform 220ms ease, opacity 220ms ease;
   opacity: 0;
@@ -289,6 +289,7 @@ button.ghost {
 .editor-host--visual {
   height: 100%;
   min-height: 0;
+  overflow: hidden;
 }
 
 .editor-host--visual .cm-editor,
