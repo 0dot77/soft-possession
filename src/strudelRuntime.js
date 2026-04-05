@@ -13,6 +13,23 @@ async function loadStrudel() {
   return strudelModulePromise
 }
 
+async function ensureStrudelStarted(mod) {
+  if (strudelState.started) return
+
+  await mod.initStrudel()
+  await mod.samples(
+    {
+      bd: ['bd/BT0AADA.wav'],
+      sd: ['sd/rytm-01-classic.wav'],
+      hh: ['hh/000_hh3closedhh.wav'],
+      cp: ['cp/000_cp.wav'],
+    },
+    'github:tidalcycles/dirt-samples',
+  )
+
+  strudelState.started = true
+}
+
 function buildPattern(mod, patternSource) {
   const fn = new Function(...Object.keys(mod), `return (${patternSource});`)
   return fn(...Object.values(mod))
@@ -21,25 +38,18 @@ function buildPattern(mod, patternSource) {
 export async function startStrudel(patternSource) {
   try {
     const mod = await loadStrudel()
-    if (!strudelState.started) {
-      await mod.samples({
-        bd: ['bd/BT0AADA.wav'],
-        sd: ['sd/rytm-01-classic.wav'],
-        hh: ['hh/000_hh3closedhh.wav'],
-        cp: ['cp/000_cp.wav'],
-      }, 'github:tidalcycles/dirt-samples')
-      strudelState.started = true
-    }
+    await ensureStrudelStarted(mod)
 
     if (typeof mod.silence === 'function') {
       mod.silence()
     }
 
-    const repl = mod.webaudioRepl()
     const pattern = buildPattern(mod, patternSource)
-    if (pattern?.play) {
-      pattern.play({ repl })
+    if (!pattern?.play) {
+      throw new Error('Pattern did not compile to a playable Strudel pattern')
     }
+
+    pattern.play()
 
     strudelState.transport = 'playing'
     strudelState.pattern = patternSource
@@ -60,6 +70,7 @@ export async function stopStrudel() {
       mod.silence()
     }
     strudelState.transport = 'stopped'
+    strudelState.lastError = null
     return { ok: true, transport: strudelState.transport }
   } catch (error) {
     console.error(error)
